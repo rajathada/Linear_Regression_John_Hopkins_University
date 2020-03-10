@@ -1,0 +1,165 @@
+---
+title: "Coursera Regression Models Project"
+author: "Rajat Hada"
+date: "10/14/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(data.table)
+library(ggplot2)
+library(leaps)
+library(printr)
+```
+
+### Load data
+
+```{r}
+data("mtcars")
+```
+
+## Executive Summary
+
+Here we will see how mileage (MPG: Miles per Gallon) is affected by type of transmission (Automatic or Manual).We will analyze following:
+
+* Is an automatic or manual transmission better for MPG.
+
+* Quantify the MPG difference between automatic and manual transmissions.
+
+
+## Preliminary Exploratory Data Analysis
+
+The data of this project are extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973/74 models).
+
+```{r}
+dim(mtcars)
+```
+
+The data consists of 32 observations on 11 variables.
+
+```{r}
+head(mtcars)
+```
+
+- **mpg**:	 Miles/(US) gallon
+- **cyl**:	 Number of cylinders
+- **disp**:	 Displacement (cu.in.)
+- **hp**:	 Gross horsepower
+- **drat**:	 Rear axle ratio
+- **wt**:	 Weight (lb/1000)
+- **qsec**:	 1/4 mile time
+- **vs**:	 V/S
+- **am**:	 Transmission (0 = automatic, 1 = manual)
+- **gear**:	 Number of forward gears
+- **carb**:	 Number of carburetors
+
+## Data Processing
+
+Change the data type of all categorical variable as Factor data type.
+
+```{r}
+mtcars$cyl <- as.factor(mtcars$cyl)
+mtcars$vs <- as.factor(mtcars$vs)
+mtcars$am <- factor(mtcars$am, labels = c("Automatic","Manual"))
+mtcars$gear <- as.factor(mtcars$gear)
+mtcars$carb <- as.factor(mtcars$carb)
+```
+
+## Data Visualizations
+
+Lets plot MPG("Mileage") vs am("Transmisson Type"), to understand the distribution.
+
+```{r fig.height=3.5}
+ggplot(mtcars, aes(x=am, y=mpg)) +
+    geom_boxplot(aes(fill = am)) +
+    xlab("Transmission") +
+    ylab("MPG")
+```
+
+The plot show that manual transmissions have higher MPG.
+
+Performing a t-test will help verify if the difference in means is significant.
+
+```{r}
+t.test(mpg ~ am, mtcars)
+```
+
+p-value is less than 0.05. So, it rejects Null Hypothesis. Therefore there is a difference in transmission type, with manual transmissions having a higher MPG.
+
+Lets use some model to evaluate the correlations.
+
+## Linear Regression Fitting
+
+### Simple Linear Regression Model 
+Lets start the linear model with only transmission type as the independent variable.
+
+```{r}
+fit1 <- lm(mpg ~ am, mtcars)
+summary(fit1)
+```
+
+The p-value are low (0.000285) and R-Squared is 0.3385.
+
+Before making any conclusions on the effect of transmission type on fuel efficiency, we  will look at the variances between several variables in the dataset.
+
+Lets fitting all parameters of mtcars.
+
+```{r}
+fitall <- lm(mpg ~ .-1, mtcars)
+summary(fitall)
+```
+
+All the p-values are greater than 0.05. By including all the varaibles it increased the R-Squared value but it hurts the prediction. So, we have to meet somewhere in the middle.
+
+Lets use the R function STEP to do the variable selection.
+
+### STEP function
+
+```{r}
+bestFit <- step(fitall,direction="both",trace=FALSE)
+summary(bestFit)
+```
+
+The Residual standard error of this model is 2.459 on 28 degrees of freedom. 
+The Adjusted R-Squared value has increased to 0.9862.
+
+### Final Model Examination
+
+Now we fit the model "mpg ~ wt + qsec + am" as final examination model.
+
+```{r}
+lastModel <- lm(mpg ~ wt + qsec + am, data = mtcars)
+summary(lastModel)
+```
+
+
+### Residual Analisys
+
+The resulting final model examination is dependant not only on the transmission (am), but also weight (wt) and 1/4 mile time (qsec).
+
+Now, Lets look into diagonstic plots.
+
+```{r}
+par(mfrow = c(2,2))
+plot(lastModel, col = "blue", lwd = 2)
+```
+
+
+- Residuals vs Fitted: The points are randomly scattered, but may have a slight non-linear relationship.
+- Normal Q-Q: The points pass normality, they deviate slightly from the diagonal, but they follow the diagonal fairly close.
+- Scale-Location: The upward slope line is worrisome, the residues spread slightly wider.
+- Residuals vs Leverage: No high leverage points.
+
+## Conclusions
+
+The best transmission type for MPG would have to be the manual transmission. Its confirmed by the t-test, as well as our final linear model. By having a manual transmission instead of an automatic the MPG will increase by 2.94.
+
+The model fit well with a $p < 0.05$ and adjusted $R^2 = 0.83$, but the diagnostic plots did warn us that something may be missing in our model. I believe the true cause for these trends are do to the small sample size with little overlap on the parameters `wt` and `qsec`.
